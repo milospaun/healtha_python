@@ -134,27 +134,35 @@ def receive_data():
     )
     dbc = db.cursor()
 
-    # upisi podatke
-    json = request.get_json()
-    return jsonify({
-        "json": json,
-    })
-    data = json['data']
-    data_array = []
-    for row in data:
-        data_array.append((*tuple(row.values()), json['user_id'], json['source'], datetime.now()))
-    print(json)
-    query = "INSERT INTO data(gx, gy, gz, ax, ay, az, timestamp, user_id, source, created_at) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-    dbc.executemany(query, data_array)
-    db.commit()
+    try:
+        json = request.get_json()
+        print(json)
+        # return jsonify({
+        #     "json": json,
+        # })
+        data = json['data']
+        data_array = []
+        for row in data:
+            data_array.append((*tuple(row.values()), json['user_id'], json['source'], datetime.now()))
+        query = "INSERT INTO data(gx, gy, gz, ax, ay, az, timestamp, user_id, source, created_at) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        dbc.executemany(query, data_array)
+        db.commit()
 
 
-    dbc.close()
-    db.close()
-    return jsonify({
-        "status": 200,
-        "message": "Uspesno primljeni podaci"
-    })
+        dbc.close()
+        db.close()
+        return jsonify({
+            "status": 200,
+            "message": "Uspesno primljeni podaci"
+        })
+    except Exception as e:
+        dbc.close()
+        db.close()
+        return jsonify({
+            "status": 400,
+            "message": str(e),
+            "json": request.get_json()
+        })
 
 
 
