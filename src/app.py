@@ -1,8 +1,16 @@
+import os
+
+import numpy as np
+import pandas as pd
 from flask import Flask, request, render_template, jsonify
 from datetime import datetime
 import mysql.connector
 import hashlib
 import sqlite3
+
+from keras.engine.saving import load_model
+
+from signal_processing import process_raw_data
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -11,6 +19,7 @@ app.config.from_pyfile('config.py')
 @app.route('/')
 def hello_world():
     return render_template('home.html')
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -27,7 +36,7 @@ def login():
     h = hashlib.sha256()
     h.update(json['password'].encode())
     passhash = h.hexdigest()
-    dbc.execute("SELECT * FROM users WHERE email=%s", (json['email'], ))
+    dbc.execute("SELECT * FROM users WHERE email=%s", (json['email'],))
     result = dbc.fetchone()
     if not result:
         dbc.close()
@@ -46,7 +55,7 @@ def login():
             "entity": None,
         })
     else:
-        h = hashlib.sha512((datetime.now().strftime("%Y-%m-%d %H:%M:%S")+'/'+result[3]).encode())
+        h = hashlib.sha512((datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '/' + result[3]).encode())
         token = h.hexdigest()
         print(result)
         user = {
@@ -70,7 +79,6 @@ def login():
 
 @app.route('/api/registration', methods=['POST', 'GET'])
 def registration():
-
     db = mysql.connector.connect(
         host=app.config.get('DB_HOST'),
         user=app.config.get('DB_USERNAME'),
@@ -82,7 +90,7 @@ def registration():
     json = request.get_json()
 
     # validacija
-    dbc.execute("SELECT * FROM users WHERE email = %s", (json['email'],) )
+    dbc.execute("SELECT * FROM users WHERE email = %s", (json['email'],))
     result = dbc.fetchone()
     if result:
         dbc.close()
@@ -104,8 +112,6 @@ def registration():
     }
     db.commit()
 
-
-
     # zatvori konekciju
     dbc.close()
     db.close()
@@ -118,10 +124,10 @@ def registration():
             "email": json['email'],
             "role": json['role'],
             **user_id_dict,
-            "token": hashlib.sha512((datetime.now().strftime("%Y-%m-%d %H:%M:%S")+'/'+json['email']).encode()).hexdigest(),
+            "token": hashlib.sha512(
+                (datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '/' + json['email']).encode()).hexdigest(),
         },
     })
-
 
 
 @app.route('/api/data', methods=['POST'])
@@ -134,36 +140,26 @@ def receive_data():
     )
     dbc = db.cursor()
 
-    try:
-        json = request.get_json()
-        print(json)
-        # return jsonify({
-        #     "json": json,
-        # })
-        data = json['data']
-        data_array = []
-        for row in data:
-            data_array.append((*tuple(row.values()), json['user_id'], json['source'], datetime.now()))
-        query = "INSERT INTO data(gx, gy, gz, ax, ay, az, timestamp, user_id, source, created_at) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        dbc.executemany(query, data_array)
-        db.commit()
+    # upisi podatke
+    json = request.get_json()
+    return jsonify({
+        "json": json,
+    })
+    data = json['data']
+    data_array = []
+    for row in data:
+        data_array.append((*tuple(row.values()), json['user_id'], json['source'], datetime.now()))
+    print(json)
+    query = "INSERT INTO data(gx, gy, gz, ax, ay, az, timestamp, user_id, source, created_at) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    dbc.executemany(query, data_array)
+    db.commit()
 
-
-        dbc.close()
-        db.close()
-        return jsonify({
-            "status": 200,
-            "message": "Uspesno primljeni podaci"
-        })
-    except Exception as e:
-        dbc.close()
-        db.close()
-        return jsonify({
-            "status": 400,
-            "message": str(e),
-            "json": request.get_json()
-        })
-
+    dbc.close()
+    db.close()
+    return jsonify({
+        "status": 200,
+        "message": "Uspesno primljeni podaci"
+    })
 
 
 @app.route('/mgr', methods=['GET'])
@@ -187,6 +183,7 @@ def migrate():
         "message": "Uspesno migriranje",
     })
 
+
 @app.route('/drp', methods=['GET'])
 def drop_db():
     db = mysql.connector.connect(
@@ -209,8 +206,30 @@ def drop_db():
     })
 
 
+@app.route('/getActivity', methods=['GET'])
+def test_extra_s_mobile():
+    cwd = os.getcwd()
+    # home_dir = os.path.abspath(os.path.join(cwd, os.pardir))
+    print(cwd)
 
+    model_path = cwd + "/model/ExtraS/model.txt"
+    data_path = cwd + "/data/"
 
+    # acc_raw = np.loadtxt(data_path + 'acc_mobile_hodanje.csv')
+    # gyro_raw = np.loadtxt(data_path + 'gyr_mobile_hodanje.csv')
+    acc_raw = pd.read_csv(data_path + 'acc_exp01_user01.csv', sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
+    gyro_raw = pd.read_csv(data_path + 'gyro_exp01_user01.csv', sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
+    acc_raw = acc_raw[['c0', 'c1', 'c2']].values
+    gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
+    print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_raw[0]}   {gyro_raw[0]}")
 
+    x = process_raw_data(acc_raw, gyro_raw)
+    x = x[:478]
+    x = x.T
 
+    model = load_model(model_path)
+    ycapa = model.predict(x)
+    ycapa = ycapa.argmax(axis=1)
+    print(ycapa)
 
+    return str(ycapa)
