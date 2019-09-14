@@ -206,7 +206,7 @@ def drop_db():
     })
 
 
-@app.route('/getActivity', methods=['GET'])
+@app.route('/api/getActivity', methods=['GET'])
 def test_extra_s_mobile():
     cwd = os.getcwd()
     # home_dir = os.path.abspath(os.path.join(cwd, os.pardir))
