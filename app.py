@@ -136,7 +136,6 @@ def registration():
 
 @app.route('/api/data', methods=['POST'])
 def receive_data():
-    print(request.get_json())
     db = mysql.connector.connect(
         host=app.config.get('DB_HOST'),
         user=app.config.get('DB_USERNAME'),
@@ -260,7 +259,6 @@ def test_extra_s_mobile():
 
 @app.route('/api/get_activity', methods=['POST'])
 def get_activity():
-    print(request.data, request.get_json())
     db = mysql.connector.connect(
         host=app.config.get('DB_HOST'),
         user=app.config.get('DB_USERNAME'),
@@ -272,85 +270,189 @@ def get_activity():
     model_path = cwd + "/model/ExtraS/model.txt"
     json = request.get_json()
 
-    # get statistics from db
-    query = 'select * from statistics where user_id = %s'
-    params = (json['user_id'],)
-    dbc.execute(query, params)
-    statistics = dbc.fetchone()
-    # print('Statistics: ', statistics)
+    try:
+        a = 5/0
+        # get statistics from db
+        query = 'select * from statistics where user_id = %s'
+        params = (json['user_id'],)
+        dbc.execute(query, params)
+        statistics = dbc.fetchone()
+        # print('Statistics: ', statistics)
 
-    # get data from db
-    query = "SELECT * FROM data WHERE user_id = %s AND processed = 0"
-    params = (json['user_id'],)
-    dbc.execute(query, params)
-    data = dbc.fetchall()
-    skip_processing = False
-    if len(data) < 478:
-        skip_processing = True
+        # get data from db
+        query = "SELECT * FROM data WHERE user_id = %s AND processed = 0"
+        params = (json['user_id'],)
+        dbc.execute(query, params)
+        data = dbc.fetchall()
+        skip_processing = False
+        if len(data) < 478:
+            skip_processing = True
 
-    if not skip_processing:
-        data_lastrowid = data[len(data) - 1]['id']
-        print('data last row id: ', data_lastrowid)
-        seconds_processed = dbc.rowcount * 0.020
+        if not skip_processing:
+            data_lastrowid = data[len(data) - 1]['id']
+            print('data last row id: ', data_lastrowid)
+            seconds_processed = dbc.rowcount * 0.020
 
-        acc_data = []
-        gyr_data = []
-        timestamp = 0.020
-        valid_data = 0
-        last_row = {}
-        for row in data:
-            # if row['ax'] + row['ay'] + row['az'] != 0.0 \
-            #         and row['gx'] + row['gy'] + row['gz'] != 0.0 != 0.0:
-            #     acc_data.append([row['ax'], row['ay'], row['az'], "{:3.3f}".format(timestamp)])
-            #     gyr_data.append([row['gx'], row['gy'], row['gz'], "{:3.3f}".format(timestamp)])
-            #     timestamp += 0.020
-            acc_zeros = 0
-            gyr_zeros = 0
-            if row['ax'] == 0.0:
-                acc_zeros += 1
-            if row['ay'] == 0.0:
-                acc_zeros += 1
-            if row['az'] == 0.0:
-                acc_zeros += 1
-            if row['gx'] == 0.0:
-                gyr_zeros += 1
-            if row['gy'] == 0.0:
-                gyr_zeros += 1
-            if row['gz'] == 0.0:
-                gyr_zeros += 1
+            acc_data = []
+            gyr_data = []
+            timestamp = 0.020
+            valid_data = 0
+            last_row = {}
+            for row in data:
+                # if row['ax'] + row['ay'] + row['az'] != 0.0 \
+                #         and row['gx'] + row['gy'] + row['gz'] != 0.0 != 0.0:
+                #     acc_data.append([row['ax'], row['ay'], row['az'], "{:3.3f}".format(timestamp)])
+                #     gyr_data.append([row['gx'], row['gy'], row['gz'], "{:3.3f}".format(timestamp)])
+                #     timestamp += 0.020
+                acc_zeros = 0
+                gyr_zeros = 0
+                if row['ax'] == 0.0:
+                    acc_zeros += 1
+                if row['ay'] == 0.0:
+                    acc_zeros += 1
+                if row['az'] == 0.0:
+                    acc_zeros += 1
+                if row['gx'] == 0.0:
+                    gyr_zeros += 1
+                if row['gy'] == 0.0:
+                    gyr_zeros += 1
+                if row['gz'] == 0.0:
+                    gyr_zeros += 1
 
-            if acc_zeros < 2 and gyr_zeros < 2:
-                if valid_data > 0:
-                    # if last_row['ax'] == row['ax'] and last_row['ay'] == row['ay'] and last_row['az'] == row['az']:
-                    #     print('fixing acc data')
-                    #     row['ax'] += 0.000002
-                    # if last_row['gx'] == row['gx'] and last_row['gy'] == row['gy'] and last_row['gz'] == row['gz']:
-                    #     row['gx'] += 0.000002
-                    #     print('fixing gyr data')
-                    if last_row['ax'] == row['ax']:
-                        row['ax'] += 0.000010
-                    if last_row['ay'] == row['ay']:
-                        row['ay'] += 0.000010
-                    if last_row['az'] == row['az']:
-                        row['az'] += 0.000010
-                    if last_row['gx'] == row['gx']:
-                        row['gx'] += 0.000010
-                    if last_row['gy'] == row['gy']:
-                        row['gy'] += 0.000010
-                    if last_row['gz'] == row['gz']:
-                        row['gz'] += 0.000010
-                last_row = dict(row)
-                acc_data.append(["{:3.6f}".format(row['ax']), "{:3.6f}".format(row['ay']), "{:3.6f}".format(row['az']), "{:3.3f}".format(timestamp)])
-                gyr_data.append(["{:3.6f}".format(row['gx']), "{:3.6f}".format(row['gy']), "{:3.6f}".format(row['gz']), "{:3.3f}".format(timestamp)])
-                timestamp += 0.020
-                valid_data += 1
-            else:
-                print('row rejected because it contains zeros')
+                if acc_zeros < 2 and gyr_zeros < 2:
+                    if valid_data > 0:
+                        if last_row['ax'] == row['ax']:
+                            row['ax'] += 0.000010
+                        if last_row['ay'] == row['ay']:
+                            row['ay'] += 0.000010
+                        if last_row['az'] == row['az']:
+                            row['az'] += 0.000010
+                        if last_row['gx'] == row['gx']:
+                            row['gx'] += 0.000010
+                        if last_row['gy'] == row['gy']:
+                            row['gy'] += 0.000010
+                        if last_row['gz'] == row['gz']:
+                            row['gz'] += 0.000010
+                    last_row = dict(row)
+                    acc_data.append(
+                        ["{:3.6f}".format(row['ax']), "{:3.6f}".format(row['ay']), "{:3.6f}".format(row['az']),
+                         "{:3.3f}".format(timestamp)])
+                    gyr_data.append(
+                        ["{:3.6f}".format(row['gx']), "{:3.6f}".format(row['gy']), "{:3.6f}".format(row['gz']),
+                         "{:3.3f}".format(timestamp)])
+                    timestamp += 0.020
+                    valid_data += 1
 
 
-        print('valid data: ', valid_data)
-        if valid_data < 478:
-            print('not enough valid data for new processing')
+            print('valid data: ', valid_data)
+            if valid_data < 478:
+                print('not enough valid data for new processing')
+                activity_dict = {
+                    "walking": statistics["walking"],
+                    "walking_upstairs": statistics["walking_upstairs"],
+                    "walking_downstairs": statistics["walking_downstairs"],
+                    "sitting": statistics["sitting"],
+                    "standing": statistics["standing"],
+                    "laying": statistics["laying"],
+                    "stand_to_sit": statistics["stand_to_sit"],
+                    "sit_to_stand": statistics["sit_to_stand"],
+                    "sit_to_lie": statistics["sit_to_lie"],
+                    "lie_to_sit": statistics["lie_to_sit"],
+                    "stand_to_lie": statistics["stand_to_lie"],
+                    "lie_to_stand": statistics["lie_to_stand"],
+                    "total": statistics["total"],
+                }
+
+                # close db connection
+                dbc.close()
+                db.close()
+
+                return jsonify(activity_dict)
+
+            # generate csvs
+            acc_filename = cwd + '/acc_temp_' + str(json['user_id']) + '.csv'
+            gyr_filename = cwd + '/gyr_temp_' + str(json['user_id']) + '.csv'
+            acc_df = pd.DataFrame(acc_data)
+            gyr_df = pd.DataFrame(gyr_data)
+            acc_df.to_csv(acc_filename, sep=' ', header=None, index=False)
+            gyr_df.to_csv(gyr_filename, sep=' ', header=None, index=False)
+
+            # return 'test'
+
+            # predict activity
+            acc_raw = pd.read_csv(acc_filename, sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
+            gyro_raw = pd.read_csv(gyr_filename, sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
+            acc_raw = acc_raw[['c0', 'c1', 'c2']].values
+            gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
+
+            x = process_raw_data(acc_raw, gyro_raw)
+            x = x[:478]
+            x = x.T
+
+            model = load_model(model_path)
+            ycapa = model.predict(x)
+            ycapa = ycapa.argmax(axis=1)
+            print(ycapa)
+
+            # remove generated csvs as they're no longer needed
+            os.remove(acc_filename)
+            os.remove(gyr_filename)
+
+            # process result
+            size = ycapa.size
+            activity_dict = {
+                "walking": 0,
+                "walking_upstairs": 0,
+                "walking_downstairs": 0,
+                "sitting": 0,
+                "standing": 0,
+                "laying": 0,
+                "stand_to_sit": 0,
+                "sit_to_stand": 0,
+                "sit_to_lie": 0,
+                "lie_to_sit": 0,
+                "stand_to_lie": 0,
+                "lie_to_stand": 0,
+                "total": 0,
+            }
+
+            counter = 1
+            for key in activity_dict:
+                count = np.count_nonzero(ycapa == counter)
+                # print(key + ': ' + str(count))
+                activity_percentage = float(count) / float(size)
+                activity_dict[key] = round(activity_percentage * seconds_processed) + statistics[key]
+                counter += 1
+
+            activity_dict["total"] = statistics["total"] + round(seconds_processed)
+            # print(activity_dict)
+
+            # save new statistics
+            query = "UPDATE statistics SET walking = %s,walking_upstairs = %s,walking_downstairs = %s,sitting= %s ,standing = %s,laying = %s" \
+                    ",stand_to_sit=%s,sit_to_stand=%s,sit_to_lie=%s,lie_to_sit=%s,stand_to_lie=%s,lie_to_stand=%s,total=%s WHERE user_id = %s"
+            params = (activity_dict['walking'], activity_dict['walking_upstairs'], activity_dict['walking_downstairs'],
+                      activity_dict['sitting']
+                      , activity_dict['standing'], activity_dict['laying'], activity_dict['stand_to_sit'],
+                      activity_dict['sit_to_stand']
+                      , activity_dict['sit_to_lie'], activity_dict['lie_to_sit'], activity_dict['stand_to_lie'],
+                      activity_dict['lie_to_stand']
+                      , activity_dict['total'], json['user_id'])
+            dbc.execute(query, params)
+            db.commit()
+
+            # delete processed data
+            query = "DELETE FROM data WHERE user_id = %s AND id <= %s"
+            params = (json['user_id'], data_lastrowid,)
+            dbc.execute(query, params)
+            db.commit()
+
+            # close db connection
+            dbc.close()
+            db.close()
+
+            return jsonify(activity_dict)
+        else:
+            print('not enough raw data for processing')
             activity_dict = {
                 "walking": statistics["walking"],
                 "walking_upstairs": statistics["walking_upstairs"],
@@ -372,110 +474,15 @@ def get_activity():
             db.close()
 
             return jsonify(activity_dict)
-
-
-        # generate csvs
-        acc_filename = cwd + '/acc_temp_' + str(json['user_id']) + '.csv'
-        gyr_filename = cwd + '/gyr_temp_' + str(json['user_id']) + '.csv'
-        acc_df = pd.DataFrame(acc_data)
-        gyr_df = pd.DataFrame(gyr_data)
-        acc_df.to_csv(acc_filename, sep=' ', header=None, index=False)
-        gyr_df.to_csv(gyr_filename, sep=' ', header=None, index=False)
-
-        # return 'test'
-
-        # predict activity
-        acc_raw = pd.read_csv(acc_filename, sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
-        gyro_raw = pd.read_csv(gyr_filename, sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
-        acc_raw = acc_raw[['c0', 'c1', 'c2']].values
-        gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
-
-        x = process_raw_data(acc_raw, gyro_raw)
-        x = x[:478]
-        x = x.T
-
-        model = load_model(model_path)
-        ycapa = model.predict(x)
-        ycapa = ycapa.argmax(axis=1)
-
-        # remove generated csvs as they're no longer needed
-        os.remove(acc_filename)
-        os.remove(gyr_filename)
-
-        # process result
-        size = ycapa.size
-        activity_dict = {
-            "walking": 0,
-            "walking_upstairs": 0,
-            "walking_downstairs": 0,
-            "sitting": 0,
-            "standing": 0,
-            "laying": 0,
-            "stand_to_sit": 0,
-            "sit_to_stand": 0,
-            "sit_to_lie": 0,
-            "lie_to_sit": 0,
-            "stand_to_lie": 0,
-            "lie_to_stand": 0,
-            "total": 0,
-        }
-
-        counter = 1
-        for key in activity_dict:
-            count = np.count_nonzero(ycapa == counter)
-            # print(key + ': ' + str(count))
-            activity_percentage = float(count) / float(size)
-            activity_dict[key] = round(activity_percentage * seconds_processed) + statistics[key]
-            counter += 1
-
-        activity_dict["total"] = statistics["total"] + round(seconds_processed)
-        # print(activity_dict)
-
-        # save new statistics
-        query = "UPDATE statistics SET walking = %s,walking_upstairs = %s,walking_downstairs = %s,sitting= %s ,standing = %s,laying = %s" \
-                ",stand_to_sit=%s,sit_to_stand=%s,sit_to_lie=%s,lie_to_sit=%s,stand_to_lie=%s,lie_to_stand=%s,total=%s WHERE user_id = %s"
-        params = (activity_dict['walking'], activity_dict['walking_upstairs'], activity_dict['walking_downstairs'],
-                  activity_dict['sitting']
-                  , activity_dict['standing'], activity_dict['laying'], activity_dict['stand_to_sit'],
-                  activity_dict['sit_to_stand']
-                  , activity_dict['sit_to_lie'], activity_dict['lie_to_sit'], activity_dict['stand_to_lie'],
-                  activity_dict['lie_to_stand']
-                  , activity_dict['total'], json['user_id'])
-        dbc.execute(query, params)
-        db.commit()
-
-        # update processed on data
-        query = "UPDATE data SET processed = 1 WHERE user_id = %s AND processed = 0 AND id <= %s"
-        params = (json['user_id'], data_lastrowid,)
-        dbc.execute(query, params)
-        print('data updated rows: ', dbc.rowcount)
-        db.commit()
-
+    except Exception as e:
         # close db connection
         dbc.close()
         db.close()
 
-        return jsonify(activity_dict)
-    else:
-        print('not enough raw data for new processing')
-        activity_dict = {
-            "walking": statistics["walking"],
-            "walking_upstairs": statistics["walking_upstairs"],
-            "walking_downstairs": statistics["walking_downstairs"],
-            "sitting": statistics["sitting"],
-            "standing": statistics["standing"],
-            "laying": statistics["laying"],
-            "stand_to_sit": statistics["stand_to_sit"],
-            "sit_to_stand": statistics["sit_to_stand"],
-            "sit_to_lie": statistics["sit_to_lie"],
-            "lie_to_sit": statistics["lie_to_sit"],
-            "stand_to_lie": statistics["stand_to_lie"],
-            "lie_to_stand": statistics["lie_to_stand"],
-            "total": statistics["total"],
-        }
+        print(str(e))
 
-        # close db connection
-        dbc.close()
-        db.close()
-
-        return jsonify(activity_dict)
+        raise
+        return jsonify({
+            "status": 400,
+            "message": str(e),
+        })
