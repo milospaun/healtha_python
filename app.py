@@ -272,20 +272,11 @@ def test_vts_fusion():
     model_path = cwd + "/model/vts_fusion.h5"
     data_path = cwd + "/data/"
 
-    acc_raw = pd.read_csv(data_path + 'mobile/acc_exp01_user01.csv', sep=' ', header=None,
-                          names=['c0', 'c1', 'c2', 'c3'])
-    gyro_raw = pd.read_csv(data_path + 'mobile/gyro_exp01_user01.csv', sep=' ', header=None,
-                           names=['c0', 'c1', 'c2', 'c3'])
-    acc_watch = pd.read_csv(data_path + 'watch/acc_exp01_user01.csv', sep=' ', header=None,
-                            names=['c0', 'c1', 'c2', 'c3'])
-    gyro_watch = pd.read_csv(data_path + 'watch/gyro_exp01_user01.csv', sep=' ', header=None,
-                             names=['c0', 'c1', 'c2', 'c3'])
-
-    acc_raw = acc_raw[['c0', 'c1', 'c2']].values
-    gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
-    acc_watch = acc_watch[['c0', 'c1', 'c2']].values
-    gyro_watch = gyro_watch[['c0', 'c1', 'c2']].values
-    print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_raw[0]}   {gyro_raw[0]}")
+    acc_raw = pd.read_csv(data_path + 'mobile/acc_exp01_user01.csv', sep=' ', header=None)
+    gyro_raw = pd.read_csv(data_path + 'mobile/gyro_exp01_user01.csv', sep=' ', header=None)
+    acc_watch = pd.read_csv(data_path + 'watch/acc_exp01_user01.csv', sep=' ', header=None)
+    gyro_watch = pd.read_csv(data_path + 'watch/gyro_exp01_user01.csv', sep=' ', header=None)
+    print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_watch.shape}   {gyro_watch.shape}")
 
     adapter_mob = VtsFusionAdapter("")
     features = adapter_mob.__build_fused_features(acc_raw, gyro_raw, acc_watch, gyro_watch)
@@ -294,6 +285,33 @@ def test_vts_fusion():
     ycapa = model.predict(features)
     ycapa = ycapa.argmax(axis=1)
     print(ycapa)
+
+    cwd = os.getcwd()
+    # home_dir = os.path.abspath(os.path.join(cwd, os.pardir))
+    print(cwd)
+
+    model_path = cwd + "\\model\\vts_mob.h5"
+    data_path = cwd + "\\datasets\\"
+
+
+    acc_raw = pd.read_csv(data_path + 'mobile\\acc_exp13_user08.csv', sep=' ', header=None)
+    gyro_raw = pd.read_csv(data_path + 'mobile\\gyro_exp13_user08.csv', sep=' ', header=None)
+    print(f"acc shape:{acc_raw.shape}   gyro shape: {gyro_raw.shape}")
+
+    adapter_mob = VtsAdapterMobile("")
+    features = adapter_mob.build_data(acc_raw.values, gyro_raw.values)
+    print(f"features shape: {features.shape}")
+
+    model = load_model(model_path)
+    ycapa = model.predict(features)
+    ycapa = ycapa.argmax(axis=1)
+
+    # restore to labels befeore normalization for training
+    ycapa = ycapa + 1
+    a = [adapter_mob.labels_to_text.get(x) for x in ycapa]
+    print(a)
+
+    return str(a)
 
     return str(ycapa)
 
