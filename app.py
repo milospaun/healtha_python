@@ -269,51 +269,30 @@ def test_vts_fusion():
     cwd = os.getcwd()
     print(cwd)
 
-    model_path = cwd + "/model/vts_fusion.h5"
-    data_path = cwd + "/data/"
+    model_path = cwd + "\\model\\vts_fusion.h5"
+    data_path = cwd + "\\datasets\\"
 
-    acc_raw = pd.read_csv(data_path + 'mobile/acc_exp01_user01.csv', sep=' ', header=None)
-    gyro_raw = pd.read_csv(data_path + 'mobile/gyro_exp01_user01.csv', sep=' ', header=None)
-    acc_watch = pd.read_csv(data_path + 'watch/acc_exp01_user01.csv', sep=' ', header=None)
-    gyro_watch = pd.read_csv(data_path + 'watch/gyro_exp01_user01.csv', sep=' ', header=None)
+    acc_raw = pd.read_csv(data_path + 'mobile\\acc_exp01_user01.csv', sep=' ', header=None)
+    gyro_raw = pd.read_csv(data_path + 'mobile\\gyro_exp01_user01.csv', sep=' ', header=None)
+    acc_watch = pd.read_csv(data_path + 'watch\\acc_exp01_user01.csv', sep=' ', header=None)
+    gyro_watch = pd.read_csv(data_path + 'watch\\gyro_exp01_user01.csv', sep=' ', header=None)
     print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_watch.shape}   {gyro_watch.shape}")
 
     adapter_mob = VtsFusionAdapter("")
-    features = adapter_mob.__build_fused_features(acc_raw, gyro_raw, acc_watch, gyro_watch)
-
-    model = load_model(model_path)
-    ycapa = model.predict(features)
-    ycapa = ycapa.argmax(axis=1)
-    print(ycapa)
-
-    cwd = os.getcwd()
-    # home_dir = os.path.abspath(os.path.join(cwd, os.pardir))
-    print(cwd)
-
-    model_path = cwd + "\\model\\vts_mob.h5"
-    data_path = cwd + "\\datasets\\"
-
-
-    acc_raw = pd.read_csv(data_path + 'mobile\\acc_exp13_user08.csv', sep=' ', header=None)
-    gyro_raw = pd.read_csv(data_path + 'mobile\\gyro_exp13_user08.csv', sep=' ', header=None)
-    print(f"acc shape:{acc_raw.shape}   gyro shape: {gyro_raw.shape}")
-
-    adapter_mob = VtsAdapterMobile("")
-    features = adapter_mob.build_data(acc_raw.values, gyro_raw.values)
+    features = adapter_mob.build_data(acc_raw.values, gyro_raw.values, acc_watch.values, gyro_watch.values)
     print(f"features shape: {features.shape}")
 
     model = load_model(model_path)
     ycapa = model.predict(features)
     ycapa = ycapa.argmax(axis=1)
 
-    # restore to labels befeore normalization for training
+    # restore to labels before normalization for training
     ycapa = ycapa + 1
     a = [adapter_mob.labels_to_text.get(x) for x in ycapa]
     print(a)
 
     return str(a)
 
-    return str(ycapa)
 
 @app.route('/api/get_activity', methods=['POST'])
 def get_activity():
