@@ -12,6 +12,20 @@ logger = logging.getLogger()
 
 
 class VtsFusionAdapter(DataAdapter):
+    labels_to_text = {
+        1: "WALKING",
+        2: "WALKING_UPSTAIRS",
+        3: "WALKING_DOWNSTAIRS",
+        4: "SITTING",
+        5: "STANDING",
+        6: "LAYING",
+        7: "STAND_TO_SIT",
+        8: "SIT_TO_STAND",
+        9: "SIT_TO_LIE",
+        10: "LIE_TO_SIT",
+        11: "STAND_TO_LIE",
+        12: "LIE_TO_STAND"
+    }
 
     # Initializer / Instance attributes
     def __init__(self, raw_dir):
@@ -67,3 +81,32 @@ class VtsFusionAdapter(DataAdapter):
         print(f"Num examples before mob:{x_mob.shape} watch:{x_watch.shape}, and after processing: {data.shape}")
 
         return data, labels
+
+    def build_data(self, acc_mob, gyro_mob, acc_watch, gyro_watch):
+        """
+
+        :param acc_mob:
+        :param gyro_mob:
+        :param acc_watch:
+        :param gyro_watch:
+        :return:
+        """
+        adapter_mob = VtsAdapterMobile("")
+        features_mob = adapter_mob.build_data(acc_mob, gyro_mob)
+
+        adapter_watch = VtsAdapterWatch("")
+        features_watch = adapter_watch.build_data(acc_watch, gyro_watch)
+        print(f"Num examples before mob:{features_mob.shape} watch:{features_watch.shape}")
+
+        # check if they are the same size and correct
+        if features_mob.shape[0] > features_watch.shape[0]:
+            print(f"Gyro file has more samples, deleting {features_mob.shape[0] - features_watch.shape[0]}")
+            features_mob = features_mob[:features_watch.shape[0], :]
+
+        elif features_watch.shape[0] > features_mob.shape[0]:
+            print(f"Acc file has more samples, deleting {features_watch.shape[0] - features_mob.shape[0]}")
+            features_watch = features_watch[:features_mob.shape[0], :]
+
+        features = np.hstack((features_mob, features_watch))
+
+        return features
