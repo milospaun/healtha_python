@@ -8,9 +8,11 @@ import mysql.connector
 import hashlib
 import sqlite3
 
-from keras.engine.saving import load_model
+from tensorflow.keras.models import load_model
 
-from signal_processing import process_raw_data
+from src.SignalProcessing import SignalProcessing
+from src.data_adapters.VtsAdapterMobile import VtsAdapterMobile
+from src.data_adapters.VtsFusionAdapter import VtsFusionAdapter
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -174,9 +176,6 @@ def receive_data():
             "message": format(e)
         })
 
-
-
-
     dbc.close()
     db.close()
     return jsonify({
@@ -229,29 +228,70 @@ def drop_db():
     })
 
 
-@app.route('/api/getActivity', methods=['GET'])
-def test_extra_s_mobile():
+@app.route('/api/getActivityMobile', methods=['GET'])
+def test_vts_mobile():
     cwd = os.getcwd()
     # home_dir = os.path.abspath(os.path.join(cwd, os.pardir))
     print(cwd)
 
-    model_path = cwd + "/model/ExtraS/model.txt"
-    data_path = cwd + "/data/"
+    model_path = cwd + "\\model\\vts_mob.h5"
+    data_path = cwd + "\\datasets\\"
 
     # acc_raw = np.loadtxt(data_path + 'acc_mobile_hodanje.csv')
     # gyro_raw = np.loadtxt(data_path + 'gyr_mobile_hodanje.csv')
-    acc_raw = pd.read_csv(data_path + 'acc_exp01_user01.csv', sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
-    gyro_raw = pd.read_csv(data_path + 'gyro_exp01_user01.csv', sep=' ', header=None, names=['c0', 'c1', 'c2', 'c3'])
-    acc_raw = acc_raw[['c0', 'c1', 'c2']].values
-    gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
-    print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_raw[0]}   {gyro_raw[0]}")
+    acc_raw = pd.read_csv(data_path + 'mobile\\acc_exp13_user08.csv', sep=' ', header=None)
+    gyro_raw = pd.read_csv(data_path + 'mobile\\gyro_exp13_user08.csv', sep=' ', header=None)
+    print(f"acc shape:{acc_raw.shape}   gyro shape: {gyro_raw.shape}")
 
-    x = process_raw_data(acc_raw, gyro_raw)
-    x = x[:478]
-    x = x.T
+    adapter_mob = VtsAdapterMobile("")
+    features = adapter_mob.build_data(acc_raw.values, gyro_raw.values)
+    print(f"features shape: {features.shape}")
 
     model = load_model(model_path)
-    ycapa = model.predict(x)
+    ycapa = model.predict(features)
+    ycapa = ycapa.argmax(axis=1)
+
+    #restore to labels befeore normalization for training
+    ycapa = ycapa + 1
+    a = [adapter_mob.labels_to_text.get(x) for x in ycapa]
+    print(a)
+
+    return str(a)
+
+
+@app.route('/api/getActivityWatch', methods=['GET'])
+def test_vts_watch():
+    None
+
+
+@app.route('/api/getActivityFusion', methods=['GET'])
+def test_vts_fusion():
+    cwd = os.getcwd()
+    print(cwd)
+
+    model_path = cwd + "/model/vts_fusion.h5"
+    data_path = cwd + "/data/"
+
+    acc_raw = pd.read_csv(data_path + 'mobile/acc_exp01_user01.csv', sep=' ', header=None,
+                          names=['c0', 'c1', 'c2', 'c3'])
+    gyro_raw = pd.read_csv(data_path + 'mobile/gyro_exp01_user01.csv', sep=' ', header=None,
+                           names=['c0', 'c1', 'c2', 'c3'])
+    acc_watch = pd.read_csv(data_path + 'watch/acc_exp01_user01.csv', sep=' ', header=None,
+                            names=['c0', 'c1', 'c2', 'c3'])
+    gyro_watch = pd.read_csv(data_path + 'watch/gyro_exp01_user01.csv', sep=' ', header=None,
+                             names=['c0', 'c1', 'c2', 'c3'])
+
+    acc_raw = acc_raw[['c0', 'c1', 'c2']].values
+    gyro_raw = gyro_raw[['c0', 'c1', 'c2']].values
+    acc_watch = acc_watch[['c0', 'c1', 'c2']].values
+    gyro_watch = gyro_watch[['c0', 'c1', 'c2']].values
+    print(f"{acc_raw.shape}   {gyro_raw.shape}   {acc_raw[0]}   {gyro_raw[0]}")
+
+    adapter_mob = VtsFusionAdapter("")
+    features = adapter_mob.__build_fused_features(acc_raw, gyro_raw, acc_watch, gyro_watch)
+
+    model = load_model(model_path)
+    ycapa = model.predict(features)
     ycapa = ycapa.argmax(axis=1)
     print(ycapa)
 
@@ -271,7 +311,7 @@ def get_activity():
     json = request.get_json()
 
     try:
-        a = 5/0
+        a = 5 / 0
         # get statistics from db
         query = 'select * from statistics where user_id = %s'
         params = (json['user_id'],)
@@ -342,7 +382,6 @@ def get_activity():
                          "{:3.3f}".format(timestamp)])
                     timestamp += 0.020
                     valid_data += 1
-
 
             print('valid data: ', valid_data)
             if valid_data < 478:
