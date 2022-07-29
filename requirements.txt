@@ -35,7 +35,7 @@ kiwisolver==1.1.0
 Markdown==3.1.1
 MarkupSafe==1.1.1
 matplotlib==3.1.1
-mistune==0.8.4
+mistune==2.0.3
 mock==3.0.5
 mysql-connector==2.2.9
 mysqlclient==1.4.4
